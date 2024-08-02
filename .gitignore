@@ -1,0 +1,13 @@
+test_images
+.vscode
+bin
+build
+.cache
+images
+*.txt
+test
+lib
+baseline
+big_image_results
+small_image_results
+nightly_image_resul
