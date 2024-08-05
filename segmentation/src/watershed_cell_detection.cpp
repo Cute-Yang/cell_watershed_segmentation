@@ -111,13 +111,12 @@ template<> struct UnitDivdeValueTraits<MemoryUnitKind::Tbyte> {
 
 
 template<class T, MemoryUnitKind unit_kind = MemoryUnitKind::Mbyte,
-         typename = image_dtype_limit<T>::type>
+         typename = image_dtype_limit_t<T>>
 float compute_mat_memory_size(const ImageMat<T>& image) {
     size_t          element_nbytes = image.get_nbytes();
     constexpr float unit_divide    = UnitDivdeValueTraits<unit_kind>::value;
     return static_cast<float>(element_nbytes) / unit_divide;
 }
-
 
 // return the max of requested size and real size as perfered size!
 FISH_ALWAYS_INLINE double compute_averaged_pixel_size_microns(double pixel_size_microns_h,
@@ -166,7 +165,7 @@ double compute_downsample_factor(double pixel_size_microns_h, double pixel_size_
     return downsample_factor;
 }
 
-template<class T1, class T2, typename = dtype_limit<T1>, typename = dtype_limit<T2>>
+template<class T1, class T2, typename = dtype_limit_t<T1>, typename = dtype_limit_t<T2>>
 ImageMat<T2> convert_mat_dtype(const ImageMat<T1>& mat) {
     if constexpr (std::is_same_v<T1, T2>) {
         return mat;
@@ -184,12 +183,10 @@ ImageMat<T2> convert_mat_dtype(const ImageMat<T1>& mat) {
     return converted_mat;
 }
 
-
-
+// but this is not effective!
 void clip_polygons(std::vector<PolygonTypef32>& polygons, int width, int height) {
     constexpr float xmin = 0.0f;
     float           xmax = static_cast<float>(width - 1);
-
     constexpr float ymin = 0.0f;
     float           ymax = static_cast<float>(height - 1);
 
@@ -199,12 +196,10 @@ void clip_polygons(std::vector<PolygonTypef32>& polygons, int width, int height)
         size_t vertex_size = polygon.size();
         for (size_t j = 0; j < vertex_size; ++j) {
             if (polygon[j].x < xmin) {
-                LOG_INFO("find small x {}", polygon[j].x);
                 polygon[j].x = xmin;
             } else if (polygon[j].x > xmax) {
                 polygon[j].x = xmax;
             }
-
             if (polygon[j].y < ymin) {
                 polygon[j].y = ymin;
             } else if (polygon[j].y > ymax) {
@@ -226,6 +221,14 @@ Status::ErrorCode cell_detection_impl(
         LOG_ERROR("the origianl image is empty,so noting to do....");
         return Status::ErrorCode::InvalidMatShape;
     }
+
+    MatMemLayout layout = original_image.get_layout();
+    if (layout != MatMemLayout::LayoutRight) {
+        LOG_ERROR("we access image by width first,so the layout must be layout right,but got "
+                  "layout left/others...");
+        return Status::ErrorCode::UnexpectedMatLayout;
+    }
+
     int height   = original_image.get_height();
     int width    = original_image.get_width();
     int channels = original_image.get_channels();
@@ -236,16 +239,18 @@ Status::ErrorCode cell_detection_impl(
                   detect_channel);
         return Status::ErrorCode::InvalidMatChannle;
     }
-    LOG_INFO("we will use channel {} to  detect...", detect_channel);
+    LOG_INFO("we will use channel {} to  detect cell...", detect_channel);
     // for the fill func,we pass the mask to reuse the memory!
     // how to reuse the memory!
     LOG_INFO("generate two placeholder to reuse the memory...");
-    ImageMat<uint8_t> image_u8_placeholder(height, width, 1, MatMemLayout::LayoutRight);
-    ImageMat<float>   image_f32_placeholder(height, width, 1, MatMemLayout::LayoutRight);
+    ImageMat<uint8_t> image_i8_placeholder(height, width, 1, MatMemLayout::LayoutRight);
+    float             image_i8_memory_size = static_cast<float>(height * width) / 1024.0f / 1024.0f;
+
+    ImageMat<float> image_f32_placeholder(height, width, 1, MatMemLayout::LayoutRight);
     // for memory report!
     float image_f32_memory_size =
-        static_cast<float>(height * width * sizeof(float)) / 1024.0f / 1024.0f;
-    float image_u8_memory_size = static_cast<float>(height * width) / 1024.0f / 1024.0f;
+        compute_mat_memory_size<float, MemoryUnitKind::Mbyte>(image_f32_placeholder);
+
     // the background mask need to allocate a buffer!
     ImageMat<uint8_t> background_mask;
     // the image to compute the measurements!
@@ -254,6 +259,7 @@ Status::ErrorCode cell_detection_impl(
     // avoid large image out of range!
     size_t data_size = static_cast<size_t>(height) * static_cast<size_t>(width);
     // apply copy from detect_image!
+
     LOG_INFO("copying the detect channel data to a new mat!");
     ImageMat<float> transform_image(height, width, 1, MatMemLayout::LayoutRight);
     for (int y = 0; y < height; ++y) {
@@ -279,13 +285,15 @@ Status::ErrorCode cell_detection_impl(
         bool Hematoxylin_valid = is_valid_channel(Hematoxylin_channel, channels);
         bool DAB_valid         = is_valid_channel(DAB_channel, channels);
         // pass by ref!
-        auto& DAB_mask = image_u8_placeholder;
+        auto& DAB_mask = image_i8_placeholder;
         if (Hematoxylin_valid && DAB_valid && Hematoxylin_channel != DAB_channel) {
             LOG_INFO("exclude the DAB...");
             constexpr uint8_t DAB_fill_value = 1;
             simple_threshold::greater_equal_than(
                 original_image, DAB_mask, Hematoxylin_channel, DAB_channel, DAB_fill_value);
             constexpr double DAB_rank_radius = 2.5;
+
+            // we can optimize the memory use of rank filter!
             rank_filter(DAB_mask, DAB_mask, FilterType::MEDIAN, DAB_rank_radius);
             rank_filter(DAB_mask, DAB_mask, FilterType::MAX, DAB_rank_radius);
             // if the mask == 0,set the pixel value to zero!
@@ -302,12 +310,10 @@ Status::ErrorCode cell_detection_impl(
     }
 
     // allocate memory for measurement image!while measurement_image can not use
-    // image_f32_placeholder!
     LOG_INFO("allocate memory {}Mb for measurments image,also for filter...",
              image_f32_memory_size);
-    measurement_image.resize(height, width, 1, true);
-
     if (background_radius > 0) {
+        measurement_image.resize(height, width, 1, true);
         auto&  background_image     = image_f32_placeholder;
         float* background_image_ptr = background_image.get_data_ptr();
         float* transform_image_ptr  = transform_image.get_data_ptr();
@@ -317,7 +323,7 @@ Status::ErrorCode cell_detection_impl(
         }
 
         // allocate memory for background mask...,while this can not use the
-        // image_u8_placeholder!
+        // image_i8_placeholder!
         estimate_background(transform_image,
                             background_image,
                             background_mask,
@@ -335,10 +341,19 @@ Status::ErrorCode cell_detection_impl(
     } else {
         // we can copy the original buffer to temp image buffer!
         //  use the original image to make measuremetns..
-        for (int y = 0; y < height; ++y) {
-            for (int x = 0; x < width; ++x) {
-                measurement_image(y, x) = original_image(y, x);
+        if (channels > 1) {
+            for (int y = 0; y < height; ++y) {
+                for (int x = 0; x < width; ++x) {
+                    measurement_image(y, x) = original_image(y, x, detect_channel);
+                }
             }
+        } else {
+            // just use it as the measurement...
+            // remove the const qualifier!
+            LOG_INFO("the original image is single channel,so we just use it as measurement view!");
+            float* original_image_ptr = const_cast<float*>((original_image.get_data_ptr()));
+            measurement_image.set_shared_buffer(
+                height, width, 1, original_image_ptr, MatMemLayout::LayoutRight);
         }
     }
 
@@ -349,7 +364,6 @@ Status::ErrorCode cell_detection_impl(
         LOG_ERROR("apply guassian transform occur error {}", Status::get_error_msg(invoke_status));
         return invoke_status;
     }
-    // auto guassian_blur_result_view = guassian_blur_result.get_image_view();
 
     // apply conv!
     constexpr int conv_kh                               = 3;
@@ -363,9 +377,6 @@ Status::ErrorCode cell_detection_impl(
         LOG_INFO("apply convolution failed...");
         return invoke_status;
     }
-
-    // auto conv_result_view = transform_image.get_image_view();
-
 
     LOG_INFO("apply binarize with thresold 0.0f");
     ImageMat<uint8_t> transform_image_mask(height, width, 1, MatMemLayout::LayoutRight);
@@ -387,17 +398,17 @@ Status::ErrorCode cell_detection_impl(
     using image_label_t = uint32_t;
     ImageMat<image_label_t> label_image(height, width, 1, MatMemLayout::LayoutRight);
 
-
     invoke_status = compute_image_label(morphological_image, label_image, 0.0f, false);
     // just for debug!
     if (invoke_status != Status::ErrorCode::Ok) {
         LOG_ERROR("fail to compute image label...");
         return invoke_status;
     }
-
     LOG_INFO("apply watershed transform...");
 
-    invoke_status = watershed_transform(transform_image, label_image, 0.0f, false);
+    uint8_t* shared_queued_buffer = image_i8_placeholder.get_data_ptr();
+    invoke_status =
+        watershed_transform(transform_image, label_image, 0.0f, false, shared_queued_buffer);
 
     // watch the label after watershed iteration!
     // auto label_image_view = label_image.get_image_view();
@@ -421,7 +432,7 @@ Status::ErrorCode cell_detection_impl(
     LOG_INFO("find filled rois...");
     {
         LOG_INFO("binding image_u8_palceholder to temp_fill_mask...");
-        auto& temp_fill_mask = image_u8_placeholder;
+        auto& temp_fill_mask = image_i8_placeholder;
         invoke_status        = get_filled_polygon(label_image,
                                            temp_fill_mask,
                                            WandMode::FOUR_CONNECTED,
@@ -509,7 +520,7 @@ Status::ErrorCode cell_detection_impl(
 
     if (merge_all) {
         LOG_INFO("binding image_u8_palceholder to neigh_filter_3x3_result...");
-        ImageMat<uint8_t>& neigh_filter_3x3_result = image_u8_placeholder;
+        ImageMat<uint8_t>& neigh_filter_3x3_result = image_i8_placeholder;
         bool               pad_edges               = true;
         int                binary_count            = 3;
         neighbor_filter_with_3x3_window(filled_image,
@@ -529,7 +540,7 @@ Status::ErrorCode cell_detection_impl(
             std::vector<PolyMask>    postprocess_roi_masks;
             constexpr uint8_t        lower_thresh   = 127;
             constexpr uint8_t        higher_thresh  = 255;
-            ImageMat<uint8_t>&       temp_fill_mask = image_u8_placeholder;
+            ImageMat<uint8_t>&       temp_fill_mask = image_i8_placeholder;
             invoke_status                           = get_filled_polygon(filled_image,
                                                temp_fill_mask,
                                                WandMode::FOUR_CONNECTED,
@@ -565,7 +576,7 @@ Status::ErrorCode cell_detection_impl(
                 // auto               distance_image_view = distance_image.get_image_view();
                 ImageMat<uint8_t>  distance_mask;   // if empty,we think all value is valid!
                 constexpr float    MAXFINDER_TOLERANCE = 0.5f;
-                ImageMat<uint8_t>& maximum_mask        = image_u8_placeholder;
+                ImageMat<uint8_t>& maximum_mask        = image_i8_placeholder;
                 bool               strict              = false;
                 bool               exclude_on_edges    = false;
                 bool               is_EDM              = true;
@@ -622,7 +633,7 @@ Status::ErrorCode cell_detection_impl(
         copy_image_mat(filled_image, transform_image_mask, ValueOpKind::MIN);
 
         // apply 3x3 filter!
-        auto& neigh_filter_3x3_result = image_u8_placeholder;
+        auto& neigh_filter_3x3_result = image_i8_placeholder;
         int   binary_count            = 0;
         bool  pad_edges               = false;
         neighbor_filter_with_3x3_window(filled_image,
@@ -638,8 +649,8 @@ Status::ErrorCode cell_detection_impl(
     std::vector<PolyMask>    nuclei_roi_masks;
     int                      remove_roi_size = 0;
     {
-        LOG_INFO("binding image_u8_placeholder to temp_fill_mask...");
-        ImageMat<uint8_t>& temp_fill_mask = image_u8_placeholder;
+        LOG_INFO("binding image_i8_placeholder to temp_fill_mask...");
+        ImageMat<uint8_t>& temp_fill_mask = image_i8_placeholder;
         constexpr uint8_t  thresh_lower   = 127;
         constexpr uint8_t  thresh_higher  = 255;
         get_filled_polygon(filled_image,
@@ -819,9 +830,14 @@ Status::ErrorCode cell_detection_impl(
         }
         double             cell_expansion_threshold = -1.0 * cell_expansion;
         ImageMat<uint32_t> cell_label_image         = label_image;
-        watershed_transform<float, uint32_t>(
-            distance_image, cell_label_image, cell_expansion_threshold, false);
-        ImageMat<uint8_t>&       temp_fill_mask = image_u8_placeholder;
+
+        uint8_t* shared_queued_buffer = image_i8_placeholder.get_data_ptr();
+        watershed_transform<float, uint32_t>(distance_image,
+                                             cell_label_image,
+                                             cell_expansion_threshold,
+                                             false,
+                                             shared_queued_buffer);
+        ImageMat<uint8_t>&       temp_fill_mask = image_i8_placeholder;
         std::vector<PolygonType> cell_rois;
         std::vector<PolyMask>    cell_roi_masks;
         labels_to_filled_polygon(

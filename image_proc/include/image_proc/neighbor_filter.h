@@ -27,7 +27,7 @@ namespace fish {
 namespace image_proc {
 namespace neighbor_filter {
 using namespace fish::core::mat;
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 Status::ErrorCode neighbor_filter_with_3x3_window(const ImageMat<T>& input_mat,
                                                   ImageMat<T>&       output_mat,
                                                   NeighborFilterType filter_type, bool pad_edges,

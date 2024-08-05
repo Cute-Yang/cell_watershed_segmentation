@@ -52,7 +52,6 @@ std::vector<float> compute_kernel_impl(double sigma, int k_radius, int max_k_rad
         guassian_sum = sigma * std::sqrt(2.0 * Constant::CONSTANT_PI);
     }
 
-
     for (int i = 0; i < k_radius; ++i) {
         // normalize,make the sum of the guassian k = 1.0
         double scaled_guassian = kernel[i] / guassian_sum;
@@ -287,7 +286,7 @@ void convolve_vector_impl(const float* datas, int data_size, float* output_datas
 }
 
 
-template<class T, ImageDirectionKind direction, typename = dtype_limit<T>>
+template<class T, ImageDirectionKind direction, typename = dtype_limit_t<T>>
 void downscale_vector_impl(const ImageMat<T>& input_mat, float* downscale_datas, int transform_size,
                            float* kernel, int block_size, int unscaled_0, int channel,
                            int fixed_idx) {
@@ -345,7 +344,7 @@ void upscale_vector_impl(const float* sample_datas, int data_size, ImageMat<floa
     }
 }
 
-template<class T, ImageDirectionKind direction, bool pad = true, typename = image_dtype_limit<T>>
+template<class T, ImageDirectionKind direction, bool pad = true, typename = image_dtype_limit_t<T>>
 void guassian_blur_1d_impl(const ImageMat<T>& input_mat, ImageMat<float>& output_mat, int channel,
                            double sigma) {
     // sigma                                = 2.88;
@@ -519,7 +518,7 @@ void guassian_blur_1d_impl(const ImageMat<T>& input_mat, ImageMat<float>& output
 }
 
 
-template<class T, typename = image_dtype_limit<T>>
+template<class T, typename = image_dtype_limit_t<T>>
 void guassian_blur_2d_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_mat, double sigma_x,
                            double sigma_y) {
     constexpr bool is_expected_mat_type = ImageTypeRequire<T>::value;

@@ -3,34 +3,53 @@
 #include "core/mat.h"
 #include <array>
 #include <cstddef>
-#include <cstdint>
 
 namespace fish {
 namespace image_proc {
 namespace statistic {
 using namespace fish::core::mat;
 
-template<class T> struct SumValueTypeTraits { using type = void; };
+template<class T> struct SumValueTypeTraits {
+    using type = void;
+};
 
 // with sign!
-template<> struct SumValueTypeTraits<int8_t> { using type = int32_t; };
+template<> struct SumValueTypeTraits<int8_t> {
+    using type = int32_t;
+};
 
-template<> struct SumValueTypeTraits<uint8_t> { using type = uint32_t; };
+template<> struct SumValueTypeTraits<uint8_t> {
+    using type = uint32_t;
+};
 
-template<> struct SumValueTypeTraits<int16_t> { using type = int32_t; };
+template<> struct SumValueTypeTraits<int16_t> {
+    using type = int32_t;
+};
 
-template<> struct SumValueTypeTraits<uint16_t> { using type = uint32_t; };
+template<> struct SumValueTypeTraits<uint16_t> {
+    using type = uint32_t;
+};
 
-template<> struct SumValueTypeTraits<int32_t> { using type = int64_t; };
+template<> struct SumValueTypeTraits<int32_t> {
+    using type = int64_t;
+};
 
-template<> struct SumValueTypeTraits<uint32_t> { using type = uint64_t; };
+template<> struct SumValueTypeTraits<uint32_t> {
+    using type = uint64_t;
+};
 
 
-template<> struct SumValueTypeTraits<int64_t> { using type = int64_t; };
+template<> struct SumValueTypeTraits<int64_t> {
+    using type = int64_t;
+};
 
-template<> struct SumValueTypeTraits<float> { using type = double; };
+template<> struct SumValueTypeTraits<float> {
+    using type = double;
+};
 
-template<> struct SumValueTypeTraits<double> { using type = double; };
+template<> struct SumValueTypeTraits<double> {
+    using type = double;
+};
 
 
 // the pixel value is 255,use 256 to restore the historgram!s

@@ -33,7 +33,7 @@ FISH_ALWAYS_INLINE Mat<float> normalize_kernel(const Mat<float>& kernel) {
     normalize_kernel(scaled_kernel.get_data_ptr(), kernel.get_element_num());
     return scaled_kernel;
 }
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 void convolution_generic_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_mat,
                               const Mat<float>& kernel, int channel) {
     int height   = input_mat.get_height();
@@ -66,7 +66,7 @@ void convolution_generic_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_
     }
 }
 
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 void convolution_3x3_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_mat,
                           const Mat<float>& kernel, int channel) {
     int height   = input_mat.get_height();
@@ -254,7 +254,7 @@ void convolution_3x3_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_mat,
     output_mat.set_value_f(height - 1, width - 1, channel, result);
 }
 
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 void convolution_1x1_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_mat,
                           const Mat<float>& kernel) {
     float    w         = kernel(0, 0);

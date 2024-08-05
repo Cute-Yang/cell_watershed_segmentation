@@ -8,7 +8,7 @@ namespace fish {
 namespace segmentation {
 namespace watershed {
 namespace internal {
-template<class T, typename = image_dtype_limit<T>>
+template<class T, typename = image_dtype_limit_t<T>>
 bool get_neighbor_label_with_4_conn(ImageMat<T>& marker, int x, int y, T& last_label) {
     int         height     = marker.get_height();
     int         width      = marker.get_width();
@@ -133,7 +133,7 @@ FISH_ALWAYS_INLINE void add_neighbors_with_4_conn(WatershedQueueWrapper<T>& queu
         }
 }
 
-//可以展开的
+// 可以展开的
 template<class T>
 void add_neighbors_with_8_conn(WatershedQueueWrapper<T>& queue, int x, int y,
                                const ImageMat<T>& image) {
@@ -156,7 +156,8 @@ void add_neighbors_with_8_conn(WatershedQueueWrapper<T>& queue, int x, int y,
 }   // namespace internal
 template<class T1, class T2, NeighborConnectiveType conn>
 Status::ErrorCode watershed_transform_impl(const ImageMat<T1>& image, ImageMat<T2>& marker,
-                                           T1 min_threshold) {
+                                           T1       min_threshold,
+                                           uint8_t* shared_queued_buffer = nullptr) {
     int height   = image.get_height();
     int width    = image.get_width();
     int channels = image.get_channels();
@@ -171,8 +172,12 @@ Status::ErrorCode watershed_transform_impl(const ImageMat<T1>& image, ImageMat<T
     }
 
     WatershedQueueWrapper<T1> wraped_queue;
+    if (shared_queued_buffer != nullptr) {
+        LOG_INFO("we will use shared queued buffer in watershed!");
+        wraped_queue.set_shared_queued_buffer(shared_queued_buffer, height, width);
+    }
     // the vector's expansion strategy is 2x! 0.25 -> 0.5 -> 1.0,will not cost any memory!
-    constexpr float estimate_enqueue_rate = 0.25f;
+    constexpr float estimate_enqueue_rate = 0.125f;
     wraped_queue.initialize(image, marker, min_threshold, estimate_enqueue_rate);
     while (!wraped_queue.is_empty()) {
         const PixelWithValue<T1>& pixel_info = wraped_queue.get_top_pixel();
@@ -191,7 +196,7 @@ Status::ErrorCode watershed_transform_impl(const ImageMat<T1>& image, ImageMat<T
         }
         // now we need to remove the pixel!
         wraped_queue.remove_top_pixel();
-        //如果neighbors有两种以上前景(或者无前景),修建大坝
+        // 如果neighbors有两种以上前景(或者无前景),修建大坝
         if (!neightbors_fg_are_same) {
             continue;
         }
@@ -211,33 +216,37 @@ Status::ErrorCode watershed_transform_impl(const ImageMat<T1>& image, ImageMat<T
 
 template<class T1, class T2, typename, typename>
 Status::ErrorCode watershed_transform(const ImageMat<T1>& image, ImageMat<T2>& marker,
-                                      T1 min_threshold, bool conn8) {
+                                      T1 min_threshold, bool conn8, uint8_t* shared_queued_buffer) {
     Status::ErrorCode status;
     if (conn8) {
         status = watershed_transform_impl<T1, T2, NeighborConnectiveType::Conn8>(
-            image, marker, min_threshold);
+            image, marker, min_threshold, shared_queued_buffer);
     } else {
         status = watershed_transform_impl<T1, T2, NeighborConnectiveType::Conn4>(
-            image, marker, min_threshold);
+            image, marker, min_threshold, shared_queued_buffer);
     }
     return status;
 }
 
 template Status::ErrorCode watershed_transform<float, uint8_t>(const ImageMat<float>& image,
                                                                ImageMat<uint8_t>&     marker,
-                                                               float min_threshold, bool conn8);
+                                                               float min_threshold, bool conn8,
+                                                               uint8_t* shared_queued_buffer);
 
 template Status::ErrorCode watershed_transform<float, uint16_t>(const ImageMat<float>& image,
                                                                 ImageMat<uint16_t>&    marker,
-                                                                float min_threshold, bool conn8);
+                                                                float min_threshold, bool conn8,
+                                                                uint8_t* shared_queued_buffer);
 
 template Status::ErrorCode watershed_transform<float, uint32_t>(const ImageMat<float>& image,
                                                                 ImageMat<uint32_t>&    marker,
-                                                                float min_threshold, bool conn8);
+                                                                float min_threshold, bool conn8,
+                                                                uint8_t* shared_queued_buffer);
 
 template Status::ErrorCode watershed_transform<float, float>(const ImageMat<float>& image,
                                                              ImageMat<float>&       marker,
-                                                             float min_threshold, bool conn8);
+                                                             float min_threshold, bool conn8,
+                                                             uint8_t* shared_queued_buffer);
 
 }   // namespace watershed
 }   // namespace segmentation

@@ -16,7 +16,7 @@ using namespace fish::core::base;
  * @param treat_edge_as_background
  * @return Status::ErrorCode
  */
-template<class T, typename = image_dtype_limit<T>>
+template<class T, typename = image_dtype_limit_t<T>>
 Status::ErrorCode distance_transform(const ImageMat<T>& input_mat, ImageMat<float>& output_mat,
                                      bool treat_edge_as_background, T background_value);
 

@@ -34,7 +34,7 @@ constexpr unsigned char ELIMINATED = 64;
 
 constexpr size_t                                       OutputTypeMarkNum = 3;
 constexpr std::array<unsigned char, OutputTypeMarkNum> OutputTypeMasks   = {
-      Constant::MAX_POINT, Constant::MAX_AREA, Constant::MAX_AREA};
+    Constant::MAX_POINT, Constant::MAX_AREA, Constant::MAX_AREA};
 
 
 struct EncodeMaskValues {
@@ -44,7 +44,7 @@ struct EncodeMaskValues {
 };
 
 struct ValueWithCoordinate {
-    //像素值(经过变换过后的)
+    // 像素值(经过变换过后的)
     int value;
     int x;
     int y;
@@ -315,11 +315,11 @@ void analyze_and_mark_maxima(const ImageMat<float>& input_mat, ImageMat<uint8_t>
             type_mat(y0, x0) |= (Constant::EQUAL | Constant::LISTED);
             int element_num         = 1;
             int current_element_idx = 0;
-            //是否外圈
+            // 是否外圈
             bool is_edge_maximum = (x0 == 0 || x0 == width - 1 || y0 == 0 || y0 == height - 1);
             sorting_error        = false;
             bool max_possible    = true;
-            //求取平均质心
+            // 求取平均质心
             double x_equal = x0;
             double y_equal = y0;
             int    n_equal = 1;
@@ -345,7 +345,7 @@ void analyze_and_mark_maxima(const ImageMat<float>& input_mat, ImageMat<uint8_t>
                         float value_plus_offset =
                             is_EDM ? true_edm_height(x_plus_offset, y_plus_offset, input_mat)
                                    : input_mat(y_plus_offset, x_plus_offset);
-                        //就是为了判断图片的像素是否是距离变换得到的点
+                        // 就是为了判断图片的像素是否是距离变换得到的点
 
                         if (value_plus_offset > value_0 + max_sorting_error) {
                             max_possible = false;
@@ -406,7 +406,7 @@ void analyze_and_mark_maxima(const ImageMat<float>& input_mat, ImageMat<uint8_t>
                     if (max_possible) {
                         type_mat(y, x) |= Constant::MAX_AREA;
                         if ((type_mat(y, x) & Constant::EQUAL) != 0) {
-                            //计算质心到当前点的欧氏距离
+                            // 计算质心到当前点的欧氏距离
                             double square_distance =
                                 (x_equal - x) * (x_equal - x) + (y_equal - y) * (y_equal - y);
                             if (square_distance < min_distance_square) {
@@ -480,12 +480,12 @@ void make_8bit_mat(const ImageMat<float>& distance_mat, const ImageMat<uint8_t>&
             } else if ((type_mat(y, x) & Constant::MAX_AREA) != 0) {
                 result_mat(y, x) = 255;
             } else {
-                //表示一偏移量
+                // 表示一偏移量
                 long temp = 1L + std::round(original_value - offset) * factor;
                 if (temp < 1L) {
                     result_mat(y, x) = 1;
                 } else if (temp <= 254L) {
-                    //只取低8位
+                    // 只取低8位
                     result_mat(y, x) = static_cast<uint8_t>(0xff & temp);
                 } else {
                     result_mat(y, x) = 254;
@@ -526,7 +526,7 @@ void cleanup_maximum(ImageMat<uint8_t>& output_mat, ImageMat<uint8_t>& type_mat,
                 int  y        = point_coordinates[current_element_idx].y;
                 bool is_inner = (x != 0 && x != width - 1 && y != 0 && y != height - 1);
                 for (int d = 0; d < 8; ++d) {
-                    //如果要想constexpr一个类,得提供一个constexpr得构造函数.xxx
+                    // 如果要想constexpr一个类,得提供一个constexpr得构造函数.xxx
                     int x2 = x + DIRECTION_OFFSETS[d].x;
                     int y2 = y + DIRECTION_OFFSETS[d].y;
                     // attention here...
@@ -563,7 +563,7 @@ void cleanup_maximum(ImageMat<uint8_t>& output_mat, ImageMat<uint8_t>& type_mat,
         for (int i = 0; i < last_num; ++i) {
             int x = point_coordinates[i].x;
             int y = point_coordinates[i].y;
-            //被淘汰的点
+            // 被淘汰的点
             output_mat(y, x) = static_cast<uint8_t>(lo_level);
             type_mat(y, x) |= Constant::ELIMINATED;
         }
@@ -692,10 +692,10 @@ void watershed_segment(ImageMat<uint8_t>& input_mat) {
         level_start[v] = offset;
         offset += histogram[v];
         if (histogram[v] > 0) {
-            //记录最大的像素值
+            // 记录最大的像素值
             highest_value = v;
         }
-        //记录最大的pixel的个数,histogram中最高的柱子
+        // 记录最大的pixel的个数,histogram中最高的柱子
         if (histogram[v] > max_bin_size) {
             max_bin_size = histogram[v];
         }
@@ -993,7 +993,7 @@ Status::ErrorCode find_maxima_impl(const ImageMat<float>& distance_mat,
             global_max_value = FISH_MAX(distance_mat(y, x), global_max_value);
         }
     }
-    //如果全是same pixel
+    // 如果全是same pixel
     bool maximum_possible = (global_max_value > global_min_value);
     if (strict && (global_max_value - global_min_value) < to_lerance) {
         maximum_possible = false;
@@ -1009,7 +1009,7 @@ Status::ErrorCode find_maxima_impl(const ImageMat<float>& distance_mat,
     std::vector<ValueWithCoordinate> max_points;
     maximum_possible = true;
     if (maximum_possible) {
-        //这里发生越界
+        // 这里发生越界
         get_sorted_max_points(distance_mat,
                               type_mat,
                               global_min_value,

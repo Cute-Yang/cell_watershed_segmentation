@@ -33,7 +33,7 @@ enum ValueOpKind : uint32_t {
 constexpr bool is_valid_channel(int channel_idx, int channels) {
     return channel_idx >= 0 && channel_idx <= channels;
 }
-template<class T, typename = image_dtype_limit<T>>
+template<class T, typename = image_dtype_limit_t<T>>
 Status::ErrorCode copy_image_mat(const ImageMat<T>& src_mat, ImageMat<T>& dst_mat, ValueOpKind op);
 
 enum class MatCompareOpType : uint8_t {
@@ -45,7 +45,7 @@ enum class MatCompareOpType : uint8_t {
 };
 // can use avx to optimize!
 //  reuse the memory!
-template<class T, MatCompareOpType op, typename = image_dtype_limit<T>>
+template<class T, MatCompareOpType op, typename = image_dtype_limit_t<T>>
 Status::ErrorCode compare_mat(const ImageMat<T>& lhs, const ImageMat<T>& rhs,
                               ImageMat<uint8_t>& mask) {
     if (!lhs.compare_shape(rhs)) {
@@ -102,7 +102,7 @@ Status::ErrorCode compare_mat(const ImageMat<T>& lhs, const ImageMat<T>& rhs,
 }
 
 
-template<class T, MatCompareOpType op, typename = image_dtype_limit<T>>
+template<class T, MatCompareOpType op, typename = image_dtype_limit_t<T>>
 ImageMat<uint8_t> compare_mat(const ImageMat<T>& lhs, const ImageMat<T>& rhs) {
     ImageMat<uint8_t> mask;
     compare_mat<T, op>(lhs, rhs, mask);
@@ -110,7 +110,7 @@ ImageMat<uint8_t> compare_mat(const ImageMat<T>& lhs, const ImageMat<T>& rhs) {
 }
 
 
-template<class T, typename = image_dtype_limit<T>>
+template<class T, typename = image_dtype_limit_t<T>>
 Status::ErrorCode threshold_above(const ImageMat<T>& image, ImageMat<uint8_t>& mask, T threshold) {
     const T* image_ptr = image.get_data_ptr();
     int      height    = image.get_height();
@@ -140,7 +140,7 @@ Status::ErrorCode threshold_above(const ImageMat<T>& image, ImageMat<uint8_t>& m
     return Status::ErrorCode::Ok;
 }
 
-template<class T, typename = image_dtype_limit<T>>
+template<class T, typename = image_dtype_limit_t<T>>
 ImageMat<uint8_t> threshold_above(const ImageMat<T>& image, T threshold) {
     ImageMat<uint8_t> mask(image.get_height(), image.get_width(), 1, MatMemLayout::LayoutRight);
     threshold_above(image, mask, threshold);
@@ -273,7 +273,7 @@ FISH_INLINE void fill_continous_memory(void* dst, int data_size, uint8_t filled_
 
 namespace simple_threshold {
 // this func support multi channels...
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 Status::ErrorCode greater_equal_than(const ImageMat<T>& lhs, const ImageMat<T>& rhs,
                                      ImageMat<uint8_t>& mask, uint8_t fill_value) {
     // if fill value is 255,we can use the fast fill with avx ...
@@ -305,7 +305,7 @@ Status::ErrorCode greater_equal_than(const ImageMat<T>& lhs, const ImageMat<T>& 
     }
 }
 
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 Status::ErrorCode greater_equal_than(const ImageMat<T>& lhs, const ImageMat<T>& rhs,
                                      ImageMat<uint8_t>& mask, int channel, uint8_t fill_value) {
     if (!lhs.compare_shape(rhs)) {
@@ -338,7 +338,7 @@ Status::ErrorCode greater_equal_than(const ImageMat<T>& lhs, const ImageMat<T>& 
     }
 }
 
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 Status::ErrorCode greater_equal_than(const ImageMat<T>& image, ImageMat<uint8_t>& mask,
                                      int lhs_channel, int rhs_channel, uint8_t fill_value) {
     if (image.empty()) {
@@ -366,7 +366,7 @@ Status::ErrorCode greater_equal_than(const ImageMat<T>& image, ImageMat<uint8_t>
     return Status::ErrorCode::Ok;
 }
 
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 ImageMat<uint8_t> greater_equal_than(const ImageMat<T>& lhs, const ImageMat<T>& rhs,
                                      uint8_t fill_value) {
     ImageMat<uint8_t> mask;
@@ -378,7 +378,7 @@ ImageMat<uint8_t> greater_equal_than(const ImageMat<T>& lhs, const ImageMat<T>& 
     return mask;
 }
 
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 ImageMat<uint8_t> greater_equal_than(const ImageMat<T>& lhs, const ImageMat<T>& rhs, int channel,
                                      uint8_t fill_value) {
     ImageMat<uint8_t> mask;
@@ -391,7 +391,7 @@ ImageMat<uint8_t> greater_equal_than(const ImageMat<T>& lhs, const ImageMat<T>& 
 }
 
 // if the ret is empty,means that fail to invoke...
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 ImageMat<uint8_t> greater_equal_than(const ImageMat<T>& image, int lhs_channel, int rhs_channel,
                                      uint8_t fill_value) {
     ImageMat<uint8_t> mask;

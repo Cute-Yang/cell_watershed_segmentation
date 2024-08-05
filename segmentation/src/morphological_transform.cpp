@@ -4,6 +4,7 @@
 #include "core/mat.h"
 #include "core/mat_ops.h"
 #include "utils/logging.h"
+#include <algorithm>
 #include <cstdlib>
 
 namespace fish {
@@ -11,17 +12,68 @@ namespace segmentation {
 namespace morphological {
 using namespace fish::core::mat_ops;
 namespace internal {
+// never allocate new buffer!
+template<class T> class FishQueue {
+private:
+    T*     array_ptr;   // the ptr is large enough,we only take a view of this buffer!
+    size_t head;
+    size_t tail;   // no need any capacity concept!
+    size_t max_size;
+
+public:
+    FishQueue(T* array_ptr_, size_t max_size_)
+        : array_ptr(array_ptr_)
+        , head(0)
+        , tail(0)
+        , max_size(max_size_) {
+        LOG_INFO("we only take view of buffer,and will not release it...");
+    }
+
+    bool is_empty() const { return head == tail; }
+
+    FishQueue(const FishQueue<T>& rhs)
+        : array_ptr(rhs.array_ptr)
+        , head(head)
+        , tail(tail) {}
+
+    FishQueue(FishQueue<T>&& rhs)
+        : array_ptr(rhs.array_ptr)
+        , head(head)
+        , tail(tail) {}
+
+    T remove() { return array_ptr[head++]; }
+
+    void add(T value) {
+        if (tail < max_size) [[likely]] {
+            array_ptr[tail++] = value;
+            return;
+        }
+
+        // align the head to 0
+        if (head != 0 && tail > head) [[likely]] {
+            std::copy(array_ptr + head, array_ptr + tail, array_ptr);
+            tail -= head;
+            head            = 0;
+            array_ptr[tail] = value;
+            ++tail;
+            return;
+        }
+        // no need to expand!
+    }
+};
+
 template<class T> class CuteQueue {
 private:
-    T* array_ptr;
-    T  head;
-    T  tail;
+    T*     array_ptr;
+    size_t head;
+    size_t tail;
     // size_t size;
     size_t capacity;
 
 public:
+    // avoid many expandsion...
     static constexpr size_t max_expansion = 1024 * 10;
-    CuteQueue(size_t capacity)
+    CuteQueue(int capacity)
         : head(0)
         , tail(0)
         // , size(0)
@@ -34,11 +86,10 @@ public:
         : head(0)
         , tail(0)
         , array_ptr(nullptr)
-        // , size(0)
         , capacity(0) {}
     bool is_empty() const { return head == tail; }
 
-    CuteQueue(const CuteQueue& rhs)
+    CuteQueue(const CuteQueue<T>& rhs)
         : head(rhs.head)
         , tail(rhs.tail)
         , capacity(rhs.capacity) {
@@ -74,13 +125,15 @@ public:
         }
     }
 
-    int remove() {
-        ++head;
-        return array_ptr[head - 1];
+    T remove() {
+        // ++head;
+        // return array_ptr[head - 1];
+        return array_ptr[head++];
     }
 
-    void add(int value) {
-        if (tail < capacity) {
+    void add(T value) {
+        // just push it to the tail!
+        if (tail < capacity) [[likely]] {
             array_ptr[tail] = value;
             ++tail;
             return;
@@ -88,30 +141,28 @@ public:
 
         // consider shift it!
         // here need to do some optimize,avoid do much copy...
-        if (head != 0) {
-            // shit to the begin of the array!
-            if (tail > head) {
-                std::copy(array_ptr + head, array_ptr + tail, array_ptr);
-                tail -= head;
-                head         = 0;
-                array_ptr[0] = value;
-                ++tail;
-                return;
-            }
+        if (head != 0 && tail > head) [[likely]] {
+            // shift to the begin of the array!
+            std::copy(array_ptr + head, array_ptr + tail, array_ptr);
+            tail -= head;
+            head            = 0;
+            array_ptr[tail] = value;
+            ++tail;
+        } else {
+            size_t new_capacity  = std::max(capacity * 2, max_expansion);
+            T*     new_array_ptr = reinterpret_cast<T*>(malloc(new_capacity * sizeof(T)));
+            std::copy(array_ptr, array_ptr + capacity, new_array_ptr);
+            capacity = new_capacity;
+            // release the previous pointer!
+            free(array_ptr);
+            array_ptr       = new_array_ptr;
+            array_ptr[tail] = value;
+            ++tail;
         }
-
-        size_t new_capacity  = std::max(capacity * 2, max_expansion);
-        T*     new_array_ptr = reinterpret_cast<T*>(malloc(new_capacity * sizeof(T)));
-        std::copy(array_ptr, array_ptr + capacity, new_array_ptr);
-        capacity = new_capacity;
-        free(array_ptr);
-        array_ptr       = new_array_ptr;
-        array_ptr[tail] = value;
-        ++tail;
     }
 };
-using IntQueue = CuteQueue<int>;
-
+using IntQueue      = CuteQueue<int>;
+constexpr size_t ab = sizeof(IntQueue);
 
 // while the increasement is reversed,we need do some change!
 template<bool push_queue>
@@ -136,7 +187,6 @@ int dilate_and_compare(ImageMat<float>& image_marker, const ImageMat<float>& ima
         LOG_INFO("nothinig to do with shape(1,1)");
         return 0;
     }
-    float& bad_value = image_marker(1538, 0);
 
     int x_start;
     int x_end;
@@ -275,10 +325,6 @@ int dilate_and_compare(ImageMat<float>& image_marker, const ImageMat<float>& ima
             p3_value       = image_marker(y - increment, x + increment);
             current_value  = image_marker(y, x);
 
-            if (y == 78 && x == 2192) {
-                LOG_INFO("cute....");
-            }
-
             float neigh_max_value = FISH_MAX(p1_value, p2_value);
             neigh_max_value       = FISH_MAX(neigh_max_value, p3_value);
             neigh_max_value       = FISH_MAX(neigh_max_value, previous_value);
@@ -333,9 +379,6 @@ int dilate_and_compare(ImageMat<float>& image_marker, const ImageMat<float>& ima
             }
         }
         if constexpr (push_queue) {
-            if (y == 1538) {
-                LOG_INFO("ssssssssss");
-            }
             bool add_to_queue = false;
             if (previous_value < current_value &&
                 previous_value < image_mask(y, x_end - 2 * increment)) {
@@ -422,7 +465,6 @@ void process_queue(ImageMat<float>& image_marker, const ImageMat<float>& image_m
 
 }   // namespace internal
 
-
 Status::ErrorCode morphological_transform(ImageMat<float>&       image_marker,
                                           const ImageMat<float>& image_mask) {
     int height   = image_marker.get_height();
@@ -463,7 +505,7 @@ Status::ErrorCode morphological_transform(ImageMat<float>&       image_marker,
  * These can then be filled in by morphological reconstruction on the way to
  * finding 'true' maxima.
  **/
-template<class T, typename = image_dtype_limit<T>>
+template<class T, typename = image_dtype_limit_t<T>>
 Status::ErrorCode get_maximal_labels(const ImageMat<T>& image, ImageMat<T>& marked_maximum_image,
                                      T threshold, int x1, int y1, int x2, int y2) {
     constexpr T type_min_value = std::numeric_limits<T>::lowest();
@@ -489,10 +531,8 @@ Status::ErrorCode get_maximal_labels(const ImageMat<T>& image, ImageMat<T>& mark
         for (int x = x1 + 1; x < x2 - 1; ++x) {
             T last_value = value;
             value        = next_value;
-            next_value   = image(y, x + 1);
-            if (y == 78 && x == 2192) {
-                LOG_INFO("cute");
-            }
+            // the next value along axis = 1
+            next_value = image(y, x + 1);
             // if value less than threhsold or less than prev and next value!
             if (value < threshold || value < last_value || value < next_value) {
                 continue;

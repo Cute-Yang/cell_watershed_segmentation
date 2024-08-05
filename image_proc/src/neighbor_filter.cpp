@@ -10,26 +10,44 @@ namespace fish {
 namespace image_proc {
 namespace neighbor_filter {
 namespace internal {
-template<class T, typename = dtype_limit<T>> struct SumTypeHelper { using type = T; };
+template<class T, typename = dtype_limit_t<T>> struct SumTypeHelper {
+    using type = T;
+};
 
-template<> struct SumTypeHelper<int8_t> { using type = int32_t; };
+template<> struct SumTypeHelper<int8_t> {
+    using type = int32_t;
+};
 
-template<> struct SumTypeHelper<uint8_t> { using type = uint32_t; };
+template<> struct SumTypeHelper<uint8_t> {
+    using type = uint32_t;
+};
 
-template<> struct SumTypeHelper<int16_t> { using type = int32_t; };
+template<> struct SumTypeHelper<int16_t> {
+    using type = int32_t;
+};
 
-template<> struct SumTypeHelper<uint16_t> { using type = uint32_t; };
+template<> struct SumTypeHelper<uint16_t> {
+    using type = uint32_t;
+};
 
-template<> struct SumTypeHelper<int32_t> { using type = int64_t; };
+template<> struct SumTypeHelper<int32_t> {
+    using type = int64_t;
+};
 
-template<> struct SumTypeHelper<uint32_t> { using type = uint64_t; };
+template<> struct SumTypeHelper<uint32_t> {
+    using type = uint64_t;
+};
 
-template<> struct SumTypeHelper<int64_t> { using type = int64_t; };
+template<> struct SumTypeHelper<int64_t> {
+    using type = int64_t;
+};
 
-template<> struct SumTypeHelper<uint64_t> { using type = uint64_t; };
+template<> struct SumTypeHelper<uint64_t> {
+    using type = uint64_t;
+};
 
 
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 FISH_ALWAYS_INLINE T compute_median_value(T* triple_datas) {
     if (triple_datas[0] > triple_datas[1]) {
         T temp          = triple_datas[0];
@@ -268,7 +286,7 @@ void neighbor_filter_1d_detail(const T* input_datas, T* output_datas, int data_s
             }
         } else {
             if constexpr (filter_type == NeighborFilterType::ERODE && pad_edges) {
-                //重复同一个元素
+                // 重复同一个元素
                 window_datas[0] = foreground_value;
                 window_datas[1] = input_datas[i - 1];
                 window_datas[2] = foreground_value;
@@ -385,7 +403,7 @@ void neighbor_filter_1d_detail(const T* input_datas, T* output_datas, int data_s
         neighbor_filter_3x3_detail<T, filter_type, true>(window_datas, binary_count);
 }
 
-template<class T, NeighborFilterType filter_type, bool pad_edges, typename = dtype_limit<T>>
+template<class T, NeighborFilterType filter_type, bool pad_edges, typename = dtype_limit_t<T>>
 void neighbor_filter_3x3_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_mat, int channel,
                               int binary_count) {
     int width  = input_mat.get_width();
@@ -591,7 +609,7 @@ void neighbor_filter_3x3_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_
             window_datas[7] = input_mat(y + 1, x, channel);
             window_datas[8] = input_mat(y + 1, x + 1, channel);
 
-            //非边缘数据不需要
+            // 非边缘数据不需要
             output_mat(y, x, channel) =
                 neighbor_filter_3x3_detail<T, filter_type, false>(window_datas, binary_count);
         }

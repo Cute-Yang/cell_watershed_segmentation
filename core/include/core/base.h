@@ -82,6 +82,7 @@ enum ErrorCode : uint32_t {
     InvokeInplace                 = 13,
     WatershedSegmentationError    = 14,
     Unknown                       = 15,
+    UnexpectedMatLayout           = 16,
     CodeNum
 };
 const char* get_error_msg(Status::ErrorCode err);

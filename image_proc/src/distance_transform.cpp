@@ -11,9 +11,13 @@ namespace distance_transform {
 namespace internal {
 enum DistanceKind : uint8_t { EuclideanDistance = 0, ManhattanDistance = 1 };
 
-template<DistanceKind kind> struct DistanceTypeHelper { using type = float; };
+template<DistanceKind kind> struct DistanceTypeHelper {
+    using type = float;
+};
 
-template<> struct DistanceTypeHelper<DistanceKind::ManhattanDistance> { using type = int; };
+template<> struct DistanceTypeHelper<DistanceKind::ManhattanDistance> {
+    using type = int;
+};
 
 enum ImageEdgeHandleType : uint8_t { TreatAsBackgroud = 0, TreatAsNormal = 1 };
 
@@ -52,7 +56,7 @@ float compute_min_distance(std::vector<Coordinate2d>& coors, Coordinate2d prev_c
     return static_cast<float>(distance);
 }
 
-template<class T, ImageEdgeHandleType handle_type, typename = image_dtype_limit<T>>
+template<class T, ImageEdgeHandleType handle_type, typename = image_dtype_limit_t<T>>
 void distance_transform_detail(const ImageMat<T>& input_mat, ImageMat<float>& distance_mat,
                                std::vector<Coordinate2d>& l2r_coors,
                                std::vector<Coordinate2d>& r2l_coors, int y, T background_value,
@@ -106,7 +110,7 @@ void distance_transform_detail(const ImageMat<T>& input_mat, ImageMat<float>& di
 }
 
 
-template<class T, ImageEdgeHandleType handle_type, typename = image_dtype_limit<T>>
+template<class T, ImageEdgeHandleType handle_type, typename = image_dtype_limit_t<T>>
 void distance_transform_impl(const ImageMat<T>& input_mat, ImageMat<float>& distance_mat,
                              T background_value) {
     int height = input_mat.get_height();

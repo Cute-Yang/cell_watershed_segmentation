@@ -20,7 +20,7 @@ constexpr size_t THRESHHOLD_MODE  = 1UL << 8;
 
 enum class TraceConnectiveType : uint32_t { FourConnective = 0, EightConnective = 1 };
 
-template<class T, typename = image_dtype_limit<T>> class Wand {
+template<class T, typename = image_dtype_limit_t<T>> class Wand {
     constexpr static size_t max_initialize_point_size = 1000;
 
 private:
@@ -103,7 +103,7 @@ private:
         while (true) {
             int new_direction;
             if constexpr (conn_type == TraceConnectiveType::FourConnective) {
-                //循环次数展开为2
+                // 循环次数展开为2
                 new_direction = direction;
                 // for the first time!
                 if (inside(x, y, new_direction, image)) {
@@ -131,13 +131,13 @@ private:
             default: break;
             }
             direction = new_direction;
-            //当重新回到起点的时候,停止循环
+            // 当重新回到起点的时候,停止循环
             if (x == start_x && y == start_y && (direction & 3) == start_direction) {
                 break;
             }
         }
 
-        //不闭合的多边形
+        // 不闭合的多边形
         if (points[0].x != x) {
             add_point(x, y);
         }
@@ -232,7 +232,7 @@ public:
             // } while (inside(x, y));
             while (true) {
                 ++x;
-                //这里自带越界判断
+                // 这里自带越界判断
                 if (!inside(x, y, image)) {
                     break;
                 }
@@ -241,11 +241,11 @@ public:
             // the end of the start
             while (true) {
                 ++x;
-                //越界返回
+                // 越界返回
                 if (x >= width) {
                     return false;
                 }
-                //寻找边界外面
+                // 寻找边界外面
                 if (inside(x, y, image)) {
                     break;
                 }

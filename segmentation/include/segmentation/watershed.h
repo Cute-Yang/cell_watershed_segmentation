@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <functional>
 #include <queue>
+#include <stdexcept>
 #include <vector>
 
 namespace fish {
@@ -193,11 +194,32 @@ private:
     size_t counter;
 
 public:
+    // construct deafult,the queded matrix allocate the new buffer!
     WatershedQueueWrapper()
         : pixel_queue()   // 这种构造方式可能会带来严重扩容问题
         , queued()
         , counter(0) {
         LOG_INFO("you must invoke the intialize function to initialize it!");
+    }
+
+    // construct with given buffer for queued,to save the buffer!
+    WatershedQueueWrapper(uint8_t* queued_buf, int height, int width)
+        : pixel_queue()
+        , queued(height, width, 1, queued_buf, MatMemLayout::LayoutRight, false)
+        , counter(0) {
+        if (height <= 0 || width <= 0 || queued_buf == nullptr) {
+            // raise an exception!
+            throw std::runtime_error("fail to initialize the watershed queue with given buffer!");
+        }
+        LOG_INFO(
+            "initialize the queued matrix with given buffer,be sure it is valid before we use it!");
+    }
+
+    void set_shared_queued_buffer(uint8_t* shared_queued_buffer, int height, int width) {
+        if (!queued.empty()) {
+            LOG_INFO("remove the onwership of queued mat...");
+        }
+        queued.set_shared_buffer(height, width, 1, shared_queued_buffer, MatMemLayout::LayoutRight);
     }
     // 指定底层容器的容量,避免扩容
     //  delete copy
@@ -215,6 +237,7 @@ public:
         int height   = image.get_height();
         int width    = image.get_width();
         int channels = image.get_channels();
+        // check the channles whether equal to 1!
         if (channels != 1) {
             LOG_ERROR("the watershed only suppot single channel image now...");
             return;
@@ -230,11 +253,26 @@ public:
         queue_container.reserve(estimate_enqueue_size);
         std::priority_queue<PixelWithValue<T>> temp_queue(std::less<PixelWithValue<T>>(),
                                                           std::move(queue_container));
-        LOG_INFO("allocate {} elements for our quque container!", height * width / 5);
-        queued.resize(height, width, 1, true);
-        // fill with zero!
-        queued.set_zero();
+        LOG_INFO("allocate {} elements for our quque container!", estimate_enqueue_size);
 
+        // the image maybe have same shape with input image if we give speciyf data ptr!
+        if (queued.compare_shape(image)) {
+            LOG_INFO("the queued matrix already have same shape with input image,maybe you give me "
+                     "a shared memory^_^");
+        } else {
+            LOG_INFO("resize the queued matrix to shape ({},{})", height, width);
+            int queued_height = queued.get_height();
+            int queued_width  = queued.get_width();
+            if (queued_height > 0 && queued_width > 0) {
+                LOG_INFO("the queued have shape({},{}) which is not equal to given image,so we "
+                         "will resize it and allocate new memory!",
+                         queued_height,
+                         queued_width);
+            }
+            queued.resize(height, width, 1, true);
+        }
+        // fill with not queued!
+        queued.fill_with_value(NOT_QUEUED);
         // this case should never happend!
         if (height == 1 && width == 1) [[unlikely]] {
             LOG_INFO("got image with shape(1,1) which is unexpected!");
@@ -385,9 +423,9 @@ public:
 };
 
 
-template<class T1, class T2, typename = image_dtype_limit<T1>, typename = image_dtype_limit<T2>>
+template<class T1, class T2, typename = image_dtype_limit_t<T1>, typename = image_dtype_limit_t<T2>>
 Status::ErrorCode watershed_transform(const ImageMat<T1>& image, ImageMat<T2>& marker,
-                                      T1 min_threshold, bool conn8);
+                                      T1 min_threshold, bool conn8, uint8_t* shared_queued_buffer);
 
 // if false,means that all neightbors are background value or neighbors are different!
 // if ture,means,the none background values are same

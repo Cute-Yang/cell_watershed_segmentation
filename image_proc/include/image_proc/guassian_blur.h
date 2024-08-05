@@ -73,11 +73,11 @@ FISH_EXPORTS inline std::vector<float> compute_upscale_kernel(int block_size) {
 }   // namespace internal
 
 
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 Status::ErrorCode guassian_blur_2d(const ImageMat<T>& input_mat, ImageMat<T>& output_mat,
                                    double sigma);
 
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 Status::ErrorCode guassian_blur_2d(const ImageMat<T>& input_mat, ImageMat<T>& output_mat,
                                    double sigma_x, double sigma_y);
 

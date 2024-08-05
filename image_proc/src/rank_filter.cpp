@@ -113,7 +113,7 @@ FISH_ALWAYS_INLINE void update_cache_points(std::vector<int>& cache_points, int 
     }
 }
 
-template<class T, FilterKernelKind kernel_kind, typename = dtype_limit<T>>
+template<class T, FilterKernelKind kernel_kind, typename = dtype_limit_t<T>>
 void rank_filter_max_impl(ImageMat<T>& output_mat, const T* cache, const int* cache_points,
                           int cache_points_size, int y, int channel) {
     constexpr bool is_small_kernel = kernel_kind == FilterKernelKind::SmallKernel;
@@ -150,7 +150,7 @@ void rank_filter_max_impl(ImageMat<T>& output_mat, const T* cache, const int* ca
 
 
 
-template<class T, FilterKernelKind kernel_kind, typename = dtype_limit<T>>
+template<class T, FilterKernelKind kernel_kind, typename = dtype_limit_t<T>>
 void rank_filter_min_impl(ImageMat<T>& output_mat, const T* cache, const int* cache_points,
                           int cache_points_size, int y, int channel) {
     constexpr bool is_small_kernel = (kernel_kind == FilterKernelKind::SmallKernel);
@@ -185,7 +185,7 @@ void rank_filter_min_impl(ImageMat<T>& output_mat, const T* cache, const int* ca
     }
 }
 
-template<class T, FilterKernelKind kernel_kind, typename = dtype_limit<T>>
+template<class T, FilterKernelKind kernel_kind, typename = dtype_limit_t<T>>
 void rank_filter_mean_impl(ImageMat<T>& output_mat, const T* cache, const int* cache_points,
                            int cache_points_size, int y, int channel, int k_npoints) {
     constexpr bool is_small_kernel = (kernel_kind == FilterKernelKind::SmallKernel);
@@ -207,7 +207,7 @@ void rank_filter_mean_impl(ImageMat<T>& output_mat, const T* cache, const int* c
     }
 }
 
-template<class T, FilterKernelKind kernel_kind, typename = dtype_limit<T>>
+template<class T, FilterKernelKind kernel_kind, typename = dtype_limit_t<T>>
 void rank_filter_variance_impl(ImageMat<T>& output_mat, const T* cache, const int* cache_points,
                                int cache_points_size, int y, int channel, int k_npoints) {
     constexpr bool is_small_kernel = (kernel_kind == FilterKernelKind::SmallKernel);
@@ -243,7 +243,7 @@ void rank_filter_variance_impl(ImageMat<T>& output_mat, const T* cache, const in
     }
 }
 
-template<class T, typename = dtype_limit<T>>
+template<class T, typename = dtype_limit_t<T>>
 void rank_filter_median_impl(ImageMat<T>& output_mat, const T* cache, const int* cache_points,
                              int cache_points_size, int y, int channel, T* temp_sort_buffer,
                              int k_npoints) {
@@ -257,7 +257,7 @@ void rank_filter_median_impl(ImageMat<T>& output_mat, const T* cache, const int*
 
 
 template<class T, PixelValueKind value_kind, FilterKernelKind kernel_kind,
-         typename = dtype_limit<T>>
+         typename = dtype_limit_t<T>>
 void rank_filter_outlier_impl(ImageMat<T>& output_mat, const T* cache, const int* cache_points,
                               int cache_points_size, int y, int channel, int y_in_cache,
                               int cache_width, T threshold, int k_radius, T* temp_sort_buffer,
@@ -382,7 +382,7 @@ void rank_filter_outlier_impl(ImageMat<T>& output_mat, const T* cache, const int
 
 
 template<class T, FilterType rank_filter_type, FilterKernelKind kernel_kind,
-         typename = image_dtype_limit<T>>
+         typename = image_dtype_limit_t<T>>
 void rank_filter_detail(ImageMat<T>& output_mat, const T* cache, const int* cache_points,
                         int cache_points_size, int y, int channel, int y_in_cache, int cache_width,
                         T threshold, int k_radius, T* temp_sort_buffer, int k_npoints,
@@ -443,7 +443,7 @@ void rank_filter_detail(ImageMat<T>& output_mat, const T* cache, const int* cach
     }
 }
 
-template<class T, FilterType rank_filter_type, typename = image_dtype_limit<T>>
+template<class T, FilterType rank_filter_type, typename = image_dtype_limit_t<T>>
 void _rank_filter_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_mat, T threshold,
                        bool is_opposite, int channel, double radius) {
     std::vector<int> line_radius_offsets = compute_line_radius_offsets(radius);
@@ -647,7 +647,7 @@ void _rank_filter_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_mat, T 
     }
 }
 
-template<class T, FilterType rank_filter_type, typename = image_dtype_limit<T>>
+template<class T, FilterType rank_filter_type, typename = image_dtype_limit_t<T>>
 void rank_filter_impl(const ImageMat<T>& input_mat, ImageMat<T>& output_mat, T threshold,
                       bool light_background, bool substract, bool is_inverted_lut,
                       OutlierValueKind outlier_kind, int channel, double radius) {

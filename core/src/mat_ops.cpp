@@ -10,7 +10,7 @@ namespace fish {
 namespace core {
 namespace mat_ops {
 namespace internal {
-template<class T, typename = dtype_limit<T>> T FISH_ALWAYS_INLINE clip_value(float value) {
+template<class T, typename = dtype_limit_t<T>> T FISH_ALWAYS_INLINE clip_value(float value) {
     constexpr T     type_min_value   = std::numeric_limits<T>::min();
     constexpr T     type_max_value   = std::numeric_limits<T>::max();
     constexpr float type_min_value_f = static_cast<float>(type_min_value);
@@ -25,7 +25,7 @@ template<class T, typename = dtype_limit<T>> T FISH_ALWAYS_INLINE clip_value(flo
 }
 
 
-template<class T, ValueOpKind op, typename = dtype_limit<T>>
+template<class T, ValueOpKind op, typename = dtype_limit_t<T>>
 FISH_ALWAYS_INLINE T value_op(T src, T dst) {
     constexpr T    zero_value{0};
     T              value          = zero_value;
@@ -106,7 +106,7 @@ FISH_ALWAYS_INLINE T value_op(T src, T dst) {
     return value;
 }
 
-template<class T, ValueOpKind op, typename = image_dtype_limit<T>>
+template<class T, ValueOpKind op, typename = image_dtype_limit_t<T>>
 void copy_image_mat_impl(const ImageMat<T>& src_mat, ImageMat<T>& dst_mat) {
     const T* src_ptr = src_mat.get_data_ptr();
     T*       dst_ptr = dst_mat.get_data_ptr();

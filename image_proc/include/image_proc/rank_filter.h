@@ -27,7 +27,7 @@ enum FilterType : uint32_t {
 constexpr std::array<const char*, FilterType::FilterTypeCount> FilterTypeStr = {
     "MEAN", "MIN", "MAX", "VARIANCE", "MEDIAN", "OUTLIER", "DESPECKLE", "OPEN", "CLOSE", "TOP_HAT"};
 
-template<class T, typename = image_dtype_limit<T>>
+template<class T, typename = image_dtype_limit_t<T>>
 Status::ErrorCode rank_filter(const ImageMat<T>& input_mat, ImageMat<T>& out_mat,
                               FilterType rank_filter_type, double radius);
 }   // namespace rank_filter

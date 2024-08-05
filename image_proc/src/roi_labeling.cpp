@@ -18,8 +18,8 @@ using namespace fish::image_proc::flood_filler;
 using namespace fish::image_proc::fill_mask;
 using namespace fish::image_proc::contour;
 
-template<class T1, class T2, FloodNeighConnType conn_type, typename = dtype_limit<T1>,
-         typename = dtype_limit<T2>>
+template<class T1, class T2, FloodNeighConnType conn_type, typename = dtype_limit_t<T1>,
+         typename = dtype_limit_t<T2>>
 Status::ErrorCode compute_image_label_impl(const ImageMat<T1>& image, ImageMat<T2>& label_image,
                                            T1 threshold) {
     int height   = image.get_height();

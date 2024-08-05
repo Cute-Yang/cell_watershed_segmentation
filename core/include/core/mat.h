@@ -4,6 +4,8 @@
 #include "core/base.h"
 #include "utils/logging.h"
 #include <algorithm>
+#include <climits>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -20,31 +22,63 @@ namespace mat {
 using namespace fish::core::base;
 
 // now only support the builtin types ^_^
-template<class T> struct ValuePrintNmaeTraits { static constexpr char name[] = "lazydog"; };
-template<> struct ValuePrintNmaeTraits<uint8_t> { static constexpr char name[] = "uin8_t"; };
-template<> struct ValuePrintNmaeTraits<int8_t> { static constexpr char name[] = "int8_t"; };
+template<class T> struct ValuePrintNmaeTraits {
+    static constexpr char name[] = "lazydog";
+};
+template<> struct ValuePrintNmaeTraits<uint8_t> {
+    static constexpr char name[] = "uin8_t";
+};
+template<> struct ValuePrintNmaeTraits<int8_t> {
+    static constexpr char name[] = "int8_t";
+};
 
-template<> struct ValuePrintNmaeTraits<uint16_t> { static constexpr char name[] = "uint16_t"; };
-template<> struct ValuePrintNmaeTraits<int16_t> { static constexpr char name[] = "int16_t"; };
+template<> struct ValuePrintNmaeTraits<uint16_t> {
+    static constexpr char name[] = "uint16_t";
+};
+template<> struct ValuePrintNmaeTraits<int16_t> {
+    static constexpr char name[] = "int16_t";
+};
 
-template<> struct ValuePrintNmaeTraits<uint32_t> { static constexpr char name[] = "uint32_t"; };
-template<> struct ValuePrintNmaeTraits<int32_t> { static constexpr char name[] = "int32_t"; };
+template<> struct ValuePrintNmaeTraits<uint32_t> {
+    static constexpr char name[] = "uint32_t";
+};
+template<> struct ValuePrintNmaeTraits<int32_t> {
+    static constexpr char name[] = "int32_t";
+};
 
-template<> struct ValuePrintNmaeTraits<uint64_t> { static constexpr char name[] = "uin64_t"; };
-template<> struct ValuePrintNmaeTraits<int64_t> { static constexpr char name[] = "int64_t"; };
+template<> struct ValuePrintNmaeTraits<uint64_t> {
+    static constexpr char name[] = "uin64_t";
+};
+template<> struct ValuePrintNmaeTraits<int64_t> {
+    static constexpr char name[] = "int64_t";
+};
 
-template<> struct ValuePrintNmaeTraits<float> { static constexpr char name[] = "float32"; };
-template<> struct ValuePrintNmaeTraits<double> { static constexpr char name[] = "float64"; };
+template<> struct ValuePrintNmaeTraits<float> {
+    static constexpr char name[] = "float32";
+};
+template<> struct ValuePrintNmaeTraits<double> {
+    static constexpr char name[] = "float64";
+};
 
 
-template<class T> struct ValuePrintSizeTraits { static constexpr size_t size = 8; };
+template<class T> struct ValuePrintSizeTraits {
+    static constexpr size_t size = 8;
+};
 
-template<> struct ValuePrintSizeTraits<uint8_t> { static constexpr size_t size = 3; };
+template<> struct ValuePrintSizeTraits<uint8_t> {
+    static constexpr size_t size = 3;
+};
 
-template<> struct ValuePrintSizeTraits<int8_t> { static constexpr size_t size = 3; };
+template<> struct ValuePrintSizeTraits<int8_t> {
+    static constexpr size_t size = 3;
+};
 
-template<> struct ValuePrintSizeTraits<int16_t> { static constexpr size_t size = 5; };
-template<> struct ValuePrintSizeTraits<uint16_t> { static constexpr size_t size = 5; };
+template<> struct ValuePrintSizeTraits<int16_t> {
+    static constexpr size_t size = 5;
+};
+template<> struct ValuePrintSizeTraits<uint16_t> {
+    static constexpr size_t size = 5;
+};
 
 
 
@@ -89,14 +123,14 @@ template<class T> struct NumericTypeRequire {
 
 // define the layout!
 enum class MatMemLayout : uint8_t { LayoutLeft = 0, LayoutRight = 1 };
-template<class T> using dtype_limit   = std::enable_if_t<NumericTypeRequire<T>::value, T>;
+template<class T> using dtype_limit   = std::enable_if<NumericTypeRequire<T>::value, T>;
 template<class T> using dtype_limit_t = typename dtype_limit<T>::type;
 
-template<class T> using image_dtype_limit   = std::enable_if_t<ImageTypeRequire<T>::value, T>;
+template<class T> using image_dtype_limit   = std::enable_if<ImageTypeRequire<T>::value, T>;
 template<class T> using image_dtype_limit_t = typename image_dtype_limit<T>::type;
 
 // the default memory order is layout right!
-template<class T, typename = dtype_limit<T>> class ImageMat {
+template<class T, typename = dtype_limit_t<T>> class ImageMat {
 private:
     // dimension
     int height;     // do
@@ -114,14 +148,20 @@ private:
     T* data_ptr;
 
     void init_stride() noexcept {
-        if (layout == MatMemLayout::LayoutRight) {
-            stride_c = 1;
-            stride_w = channels;
-            stride_h = channels * width;
+        // for empty mat,we just set it all to zero!
+        if (this->check_dimension()) {
+            if (layout == MatMemLayout::LayoutRight) {
+                stride_c = 1;
+                stride_w = channels;
+                stride_h = channels * width;
+            } else {
+                stride_h = 1;
+                stride_w = height;
+                stride_c = height * width;
+            }
         } else {
-            stride_h = 1;
-            stride_w = height;
-            stride_c = height * width;
+            LOG_INFO("set all stride to zero for empty mat!");
+            set_mat_empty();
         }
     }
 
@@ -153,8 +193,9 @@ private:
         stride_c = 0;
     }
 
+    // check whether has negative dimension!
     bool check_dimension() {
-        if (height == 0 || width == 0 || channels == 0) {
+        if (height <= 0 || width <= 0 || channels == 0) {
             LOG_ERROR("the height:{} widht:{} channels:{} maybe have invalid value",
                       height,
                       width,
@@ -166,7 +207,8 @@ private:
 
     size_t compute_allocate_bytes() {
         constexpr size_t element_size = sizeof(T);
-        return get_element_num() * element_size;
+        size_t           element_num  = get_element_num();
+        return element_num * element_size;
     }
 
 public:
@@ -199,7 +241,9 @@ public:
         , own_data(true)
         , layout(MatMemLayout::LayoutRight)
         , data_ptr(nullptr) {
-        init_stride();
+        stride_h = 0;
+        stride_w = 0;
+        stride_c = 0;
     }
 
     ImageMat(int height_, int width_, int channels_, T* buf_,
@@ -220,9 +264,10 @@ public:
         if (!copy) {
             data_ptr = buf_;
             LOG_INFO(
-                "mat do not take the ownership of dynamic data,be sure use it before reclaim it!");
+                "mat do not take the ownership of shared data,be sure use it before reclaim it!");
             own_data = false;
         } else {
+            LOG_INFO("initialize with speicfy data....");
             size_t allocate_bytes = compute_allocate_bytes();
             data_ptr              = reinterpret_cast<T*>(malloc(allocate_bytes));
             if (data_ptr == nullptr) {
@@ -277,7 +322,54 @@ public:
     ImageMat<T>& operator=(const ImageMat<T>&) = delete;
     ImageMat<T>& operator=(ImageMat<T>&&)      = delete;
 
-    void set_zero() { std::fill(data_ptr, data_ptr + height * width * channels, 0); }
+    void set_zero() {
+        size_t element_num = get_element_num();
+        std::fill(data_ptr, data_ptr + element_num, 0);
+    }
+    void fill_with_value(T fill_value) {
+        size_t element_num = get_element_num();
+        std::fill(data_ptr, data_ptr + element_num, fill_value);
+    }
+
+    bool set_shared_buffer(int height_, int width_, int channels_, T* buf_,
+                           MatMemLayout layout_ = MatMemLayout::LayoutRight) {
+        LOG_INFO("specify shared buffer to mat,be sure the buffer has valid size and valid "
+                 "lifetime....");
+        // firstly,free the previous buffer!
+        if (own_data) {
+            // if take ownership and the the data ptr is valid,just free it!
+            if (data_ptr != nullptr) {
+                free(data_ptr);
+                LOG_INFO("release the previous buffer {:x}", reinterpret_cast<uintptr_t>(data_ptr));
+            }
+        } else {
+            LOG_INFO("do not take ownership of the previous data,so just switch to a new shared "
+                     "buffer!");
+        }
+        // if fail to set shared,we will reset the mat to empty!
+        if (buf_ == nullptr) {
+            LOG_ERROR("the shared buffer can not be null...");
+            // throw std::runtime_error("shared matrix buffer is empty!");
+            set_mat_empty();
+            return false;
+        }
+        if (height_ <= 0 || width_ <= 0 || channels_ <= 0) {
+            LOG_ERROR("the matrix got invalid data shape ({},{},{})", height_, width_, channels_);
+            // throw std::runtime_error("matrix got invalid shape!");
+            set_mat_empty();
+            return false;
+        }
+
+        data_ptr = buf_;
+        height   = height_;
+        width    = width_;
+        channels = channels_;
+        // set the ownership to false!
+        own_data = false;
+
+        init_stride();
+        return true;
+    }
 
     bool not_empty() const { return height > 0 && width > 0 && channels > 0; }
 
@@ -330,9 +422,10 @@ public:
         return element_num;
     }
 
-    size_t get_nbytes() {
-        constexpr size_t element_size = sizeof(T);
-        size_t           nbytes       = element_size * get_element_num();
+    size_t get_nbytes() const noexcept {
+        constexpr size_t single_element_size = sizeof(T);
+        size_t           element_num         = get_element_num();
+        size_t           nbytes              = single_element_size * element_num;
         return nbytes;
     }
 
@@ -439,7 +532,8 @@ public:
 
 
     // if return false,means that convert failed!
-    template<class X, typename = dtype_limit<X>> bool compare_shape(const ImageMat<X>& rhs) const {
+    template<class X, typename = dtype_limit_t<X>>
+    bool compare_shape(const ImageMat<X>& rhs) const {
         if (height != rhs.get_height() || width != rhs.get_width() ||
             channels != rhs.get_channels()) {
             LOG_WARN("dimenions mismatch,left image has shape ({},{},{}) right image has shape "
@@ -626,7 +720,7 @@ public:
     }
 };
 
-template<class T1, class T2, typename = dtype_limit<T1>, typename = dtype_limit<T2>>
+template<class T1, class T2, typename = dtype_limit_t<T1>, typename = dtype_limit_t<T2>>
 Status::ErrorCode convert_mat(const ImageMat<T1>& input_mat, ImageMat<T2>& output_mat) {
     if (!input_mat.compare_shape(output_mat)) {
         LOG_ERROR(
@@ -701,7 +795,7 @@ Status::ErrorCode convert_mat(const ImageMat<T1>& input_mat, ImageMat<T2>& outpu
     return Status::ErrorCode::Ok;
 }
 
-template<class T1, class T2, typename = image_dtype_limit<T1>, typename = image_dtype_limit<T2>>
+template<class T1, class T2, typename = image_dtype_limit_t<T1>, typename = image_dtype_limit_t<T2>>
 Status::ErrorCode convert_image(const ImageMat<T1>& input_mat, ImageMat<T2>& output_mat) {
     if (!input_mat.compare_shape(output_mat)) {
         LOG_ERROR("sorry,we only convert the type with same shape....,but got "
@@ -773,7 +867,7 @@ Status::ErrorCode convert_image(const ImageMat<T1>& input_mat, ImageMat<T2>& out
 }
 
 
-template<class T, typename = dtype_limit<T>> class Mat {
+template<class T, typename = dtype_limit_t<T>> class Mat {
     int rows;
     int cols;
 
@@ -1005,7 +1099,7 @@ struct Rectangle {
 };
 
 // compute the clip value from t1 - t2
-template<class T, typename = dtype_limit<T>> T compute_clip_value(float value) {
+template<class T, typename = dtype_limit_t<T>> T compute_clip_value(float value) {
     if constexpr (FloatTypeRequire<T>::value) {
         return value;
         // do not do any clip for float value!
